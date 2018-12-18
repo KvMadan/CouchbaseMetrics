@@ -2,7 +2,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>in.km.oneview.cb</groupId>
   <artifactId>CouchbaseMetrics</artifactId>
-  <version>0.0.2</version>
+  <version>0.0.4</version>
   <name>CouchbaseMetrics</name>
   <dependencies>
 	<!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->

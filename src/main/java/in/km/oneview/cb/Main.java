@@ -10,6 +10,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -62,17 +63,21 @@ public class Main {
 
 	/*
 	 * Couchbase Metrics URLs used in the below Logic
-	 * http://indlvlincbd03:8091/pools/default
-	 * http://indlvlincbd03:8091/pools/default/buckets/
+	 * http://<SERVER>:8091/pools/default
+	 * http://<SERVER>:8091/pools/default/buckets/
 	 * 
-	 * Python based Script: https://www.site24x7.com/plugins/couchbase-monitoring.html
+	 * Care : indlvlincbd04:8091  
+	 * Catalog1 : indlvlincbi03:8091 
+	 * OC : indlvlincbd03:8091      
 	 */
 	
-	public Main(String hostname, String port, String frequency, String dbName){
+	public Main(String hostname, String port, String frequency, String dbName, String username, String password){
 		try {
 			this.hostname = hostname;
 			this.port = port;
 			this.dbName = dbName;
+			this.CB_SERVER_USERNAME = username;
+			this.CB_SERVER_PASSWORD = password;
 			
 			CB_URL = String.format(CB_URL, hostname, port);
 			CB_BUCKETS_URL = String.format(CB_BUCKETS_URL, hostname, port);
@@ -104,6 +109,9 @@ public class Main {
 					log.debug(CB_URL);
 					
 					HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+					String userpass = CB_SERVER_USERNAME + ":" + CB_SERVER_PASSWORD;
+					String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
+					conn.setRequestProperty("Authorization", basicAuth);
 					conn.setRequestMethod("GET");
 					conn.setRequestProperty("Accept", "application/json");
 					
@@ -195,7 +203,7 @@ public class Main {
 
 					//Traverse through NodeArray.
 					for (int i = 0; i < nodeArray.size(); i++) {
-						
+						log.debug("Number of Nodes: " + nodeArray.size() + "Current Node: " + i);
 						//Get the Node Array 
 						JSONObject node = (JSONObject)nodeArray.get(i);
 						JSONObject systemStats = (JSONObject)node.get("systemStats");
@@ -255,6 +263,11 @@ public class Main {
 						if (node.get("mcdMemoryAllocated") != null)
 							map.put("mcdMemoryAllocated", convertBytesToMB(node.get("mcdMemoryAllocated").toString()));
 						
+						dt = new java.util.Date();
+						//java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+						currentTime = sdf.format(dt);
+						log.debug("Generated TimeStamp");
+						
 						if(!map.isEmpty() && dbName.startsWith("mysql"))
 							mysqlMetricsSender.writeNodeMetricsToDB(map, currentTime);
 						else if (!map.isEmpty() && dbName.startsWith("Influx")){
@@ -296,6 +309,9 @@ public class Main {
 					URL url = new URL(CB_BUCKETS_URL);
 					
 					HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+					String userpass = CB_SERVER_USERNAME + ":" + CB_SERVER_PASSWORD;
+					String basicAuth = "Basic " + new String(Base64.getEncoder().encode(userpass.getBytes()));
+					conn.setRequestProperty("Authorization", basicAuth);
 					conn.setRequestMethod("GET");
 					conn.setRequestProperty("Accept", "application/json");
 					
@@ -344,6 +360,10 @@ public class Main {
 						HashMap<String, Object> map = new HashMap<String, Object>();
 						//Bucket
 						log.debug("Adding to Map");
+						
+						if (dbName.startsWith("Influx")) {
+							map.put("bucketName", bucket.get("name"));
+						}
 						
 						if (basicStats.get("quotaPercentUsed").getClass().getSimpleName().equals("Double")){
 							log.debug("Double: quotaPercentUsed : " + basicStats.get("quotaPercentUsed"));
@@ -535,6 +555,8 @@ public class Main {
 		String cbserver = System.getProperty("cb.server");
 		String cbport = System.getProperty("cb.port");
 		String frequency = System.getProperty("cb.frequency");
+		String cbusername = System.getProperty("cb.user");
+		String cbpassword = System.getProperty("cb.pwd");
 		String mysqlServer = System.getProperty("mysql.server");
 		String mysqlPort = System.getProperty("mysql.port");
 		String mysqlDb = System.getProperty("mysql.db");
@@ -567,7 +589,7 @@ public class Main {
 		}*/
 		
 		try {
-			Main cb = new Main(cbserver, cbport, frequency, dbName);
+			Main cb = new Main(cbserver, cbport, frequency, dbName, cbusername, cbpassword);
 			
 			if (dbName.startsWith("mysql"))
 			{
